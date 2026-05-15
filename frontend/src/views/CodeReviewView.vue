@@ -84,6 +84,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { streamCodeComment } from '../api/ai'
+import { devError } from '../utils/devLogger'
 
 const inputCode = ref('')
 const outputCode = ref('')
@@ -193,12 +194,12 @@ const handleAddComment = async () => {
       },
       (error) => {
         loading.value = false
-        console.error('添加注释失败:', error)
+        devError('添加注释失败:', error)
       }
     )
   } catch (err) {
     loading.value = false
-    console.error('添加注释失败:', err)
+    devError('添加注释失败:', err)
   }
 }
 
@@ -227,12 +228,12 @@ const handleOptimize = async () => {
       },
       (error) => {
         loading.value = false
-        console.error('优化失败:', error)
+        devError('优化失败:', error)
       }
     )
   } catch (err) {
     loading.value = false
-    console.error('优化失败:', err)
+    devError('优化失败:', err)
   }
 }
 

@@ -5,7 +5,7 @@ const getAllArticles = async (req, res) => {
         const { page = 1, limit = 10, category } = req.query
 
         let query = `SELECT a.*, u.username, u.avatar, 
-                     (SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id) as comment_count
+                     COALESCE((SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id), 0) as comment_count
                      FROM articles a 
                      JOIN users u ON a.user_id = u.id`
 
@@ -51,7 +51,7 @@ const getArticleById = async (req, res) => {
 
         const [articles] = await pool.query(
             `SELECT a.*, u.username, u.avatar, 
-             (SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id) as comment_count
+             COALESCE((SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id), 0) as comment_count
              FROM articles a 
              JOIN users u ON a.user_id = u.id 
              WHERE a.id = ?`,
@@ -181,8 +181,19 @@ const deleteArticle = async (req, res) => {
         }
 
         await pool.query('DELETE FROM article_tags WHERE article_id = ?', [id])
-        await pool.query('DELETE FROM comments WHERE article_id = ?', [id])
-        await pool.query('DELETE FROM article_likes WHERE article_id = ?', [id])
+        
+        try {
+            await pool.query('DELETE FROM comments WHERE article_id = ?', [id])
+        } catch (e) {
+            console.log('comments table may not exist, skipping')
+        }
+        
+        try {
+            await pool.query('DELETE FROM article_likes WHERE article_id = ?', [id])
+        } catch (e) {
+            console.log('article_likes table may not exist, skipping')
+        }
+        
         await pool.query('DELETE FROM articles WHERE id = ?', [id])
 
         res.json({
@@ -205,7 +216,7 @@ const searchArticles = async (req, res) => {
 
         const [articles] = await pool.query(
             `SELECT a.*, u.username, u.avatar, 
-             (SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id) as comment_count
+             COALESCE((SELECT COUNT(*) FROM comments c WHERE c.article_id = a.id), 0) as comment_count
              FROM articles a 
              JOIN users u ON a.user_id = u.id 
              WHERE a.title LIKE ? OR a.content LIKE ? 

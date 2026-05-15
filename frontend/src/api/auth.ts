@@ -7,6 +7,7 @@ export interface User {
   signature?: string
   age?: number
   totalTokens?: number
+  role?: 'developer' | 'user'
 }
 
 export interface AuthResponse {
@@ -35,6 +36,11 @@ export const isAuthenticated = (): boolean => {
 export const getCurrentUser = (): User | null => {
   const userStr = localStorage.getItem('user')
   return userStr ? JSON.parse(userStr) : null
+}
+
+export const isDeveloper = (): boolean => {
+  const user = getCurrentUser()
+  return user?.role === 'developer'
 }
 
 export const logout = (): void => {

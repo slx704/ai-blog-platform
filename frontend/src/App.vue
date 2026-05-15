@@ -9,8 +9,8 @@
         
         <div class="nav-links">
           <router-link to="/" class="nav-link">首页</router-link>
-          <router-link to="/ai-tools" class="nav-link" v-if="isLoggedIn">AI工具</router-link>
-          <router-link to="/code-review" class="nav-link" v-if="isLoggedIn">代码区</router-link>
+          <router-link to="/ai-tools" class="nav-link" v-if="checkLogin()">AI工具</router-link>
+          <router-link to="/code-review" class="nav-link" v-if="checkLogin()">代码区</router-link>
           
           <div class="search-box">
             <input 
@@ -23,7 +23,7 @@
             <button @click="handleSearch" class="search-btn">搜索</button>
           </div>
           
-          <div class="auth-links" v-if="isLoggedIn">
+          <div class="auth-links" v-if="checkLogin()">
             <router-link to="/edit" class="nav-link publish-btn">写文章</router-link>
             <router-link to="/profile" class="nav-link">个人中心</router-link>
             <button @click="handleLogout" class="logout-btn">退出</button>
@@ -34,7 +34,7 @@
     </nav>
     
     <main class="main-content">
-      <router-view />
+      <router-view @login-success="handleLoginSuccess" />
     </main>
     
     <footer class="footer">
@@ -46,14 +46,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAuthenticated, logout } from './api/auth'
 
 const router = useRouter()
 const searchQuery = ref('')
+const loginStatus = ref(isAuthenticated())
 
-const isLoggedIn = computed(() => isAuthenticated())
+const checkLogin = () => {
+  loginStatus.value = isAuthenticated()
+  return loginStatus.value
+}
 
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
@@ -64,7 +68,12 @@ const handleSearch = () => {
 
 const handleLogout = () => {
   logout()
+  loginStatus.value = false
   router.push('/')
+}
+
+const handleLoginSuccess = () => {
+  loginStatus.value = true
 }
 </script>
 

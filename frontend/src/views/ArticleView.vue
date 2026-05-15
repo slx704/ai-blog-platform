@@ -156,6 +156,7 @@ import { fetchArticleById } from '../api/articles';
 import { fetchCommentsByArticleId, createComment, deleteComment } from '../api/comments';
 import { streamTranslate } from '../api/ai';
 import { isAuthenticated, getCurrentUser } from '../api/auth';
+import { devLog, devError } from '../utils/devLogger';
 interface Article {
  id: number;
  title: string;
@@ -235,12 +236,11 @@ const fetchArticleData = async () => {
 const fetchComments = async () => {
  try {
  const data = await fetchCommentsByArticleId(articleId.value);
- console.log('获取到的评论数据:', data);
  comments.value = data;
  }
  catch (err) {
- console.error('获取评论失败:', err);
- alert('获取评论失败，请刷新页面重试');
+  devError('获取评论失败:', err);
+  alert('获取评论失败，请刷新页面重试');
  }
 };
 const handleLike = async () => {
@@ -265,7 +265,7 @@ const handleLike = async () => {
  }
  }
  catch (err) {
- console.error('点赞失败:', err);
+  devError('点赞失败:', err);
  }
  finally {
  loadingLike.value = false;
@@ -276,9 +276,9 @@ const handleAddComment = async () => {
  return;
  submittingComment.value = true;
  try {
- console.log('正在提交评论:', newComment.value);
+ devLog('正在提交评论:', newComment.value);
  const result = await createComment(articleId.value, newComment.value.trim());
- console.log('评论提交结果:', result);
+ devLog('评论提交结果:', result);
  
  const newCommentObj: Comment = {
    id: result.id,
@@ -293,10 +293,10 @@ const handleAddComment = async () => {
  
  comments.value = [...comments.value, newCommentObj];
  newComment.value = '';
- console.log('评论已添加到列表');
+ devLog('评论已添加到列表');
  }
  catch (err) {
- console.error('发表评论失败:', err);
+ devError('发表评论失败:', err);
  alert('发表评论失败，请稍后重试');
  }
  finally {
@@ -308,9 +308,9 @@ const handleReply = async (parentId: number) => {
  return;
  submittingComment.value = true;
  try {
- console.log('正在提交回复:', replyContent.value);
+ devLog('正在提交回复:', replyContent.value);
  const result = await createComment(articleId.value, replyContent.value.trim(), parentId);
- console.log('回复提交结果:', result);
+ devLog('回复提交结果:', result);
  
  const newReplyObj: Comment = {
    id: result.id,
@@ -332,10 +332,10 @@ const handleReply = async (parentId: number) => {
  
  replyContent.value = '';
  replyTo.value = null;
- console.log('回复已添加到列表');
+ devLog('回复已添加到列表');
  }
  catch (err) {
- console.error('回复评论失败:', err);
+ devError('回复评论失败:', err);
  alert('回复失败，请稍后重试');
  }
  finally {
@@ -350,7 +350,7 @@ const handleDeleteComment = async (commentId: number) => {
  if (!confirm('确定删除这条评论吗？'))
  return;
  try {
- console.log('正在删除评论:', commentId);
+ devLog('正在删除评论:', commentId);
  await deleteComment(commentId);
  
  comments.value = comments.value.filter(c => c.id !== commentId);
@@ -360,10 +360,10 @@ const handleDeleteComment = async (commentId: number) => {
  }
  });
  
- console.log('评论已从列表中删除');
+ devLog('评论已从列表中删除');
  }
  catch (err) {
- console.error('删除评论失败:', err);
+ devError('删除评论失败:', err);
  alert('删除评论失败，请稍后重试');
  }
 };
@@ -380,7 +380,7 @@ const handleTranslateComment = async (comment: Comment) => {
  showOriginal.value = false;
  }
  catch (err) {
- console.error('翻译失败:', err);
+ devError('翻译失败:', err);
  }
 };
 const scrollToComment = () => {

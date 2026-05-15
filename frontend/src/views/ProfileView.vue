@@ -137,6 +137,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getProfile, updateProfile, getUserArticles, getUserLikes } from '../api/users'
 import { deleteArticle } from '../api/articles'
+import { devError } from '../utils/devLogger'
 
 interface UserProfile {
   id: number
@@ -227,7 +228,7 @@ const fetchProfile = async () => {
     await fetchUserArticles()
     await fetchLikedArticles()
   } catch (err) {
-    console.error('获取资料失败:', err)
+    devError('获取资料失败:', err)
   } finally {
     loading.value = false
   }
@@ -237,7 +238,7 @@ const fetchUserArticles = async () => {
   try {
     userArticles.value = await getUserArticles(profile.value.id)
   } catch (err) {
-    console.error('获取文章失败:', err)
+    devError('获取文章失败:', err)
   }
 }
 
@@ -245,7 +246,7 @@ const fetchLikedArticles = async () => {
   try {
     likedArticles.value = await getUserLikes()
   } catch (err) {
-    console.error('获取点赞失败:', err)
+    devError('获取点赞失败:', err)
   }
 }
 
@@ -255,7 +256,7 @@ const handleDeleteArticle = async (articleId: number) => {
     await deleteArticle(articleId)
     await fetchUserArticles()
   } catch (err) {
-    console.error('删除文章失败:', err)
+    devError('删除文章失败:', err)
   }
 }
 
@@ -293,7 +294,7 @@ const handleUpdateProfile = async () => {
     showEditModal.value = false
     editForm.avatar = ''
   } catch (err) {
-    console.error('更新资料失败:', err)
+    devError('更新资料失败:', err)
   }
 }
 

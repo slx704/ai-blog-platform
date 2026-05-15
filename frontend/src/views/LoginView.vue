@@ -64,6 +64,9 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '../api/auth'
+import { ElMessage } from 'element-plus'
+
+const emit = defineEmits(['login-success'])
 
 const router = useRouter()
 
@@ -133,8 +136,14 @@ const handleSubmit = async () => {
     }
     
     if (response.success) {
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+      if (isLoginMode.value) {
+        localStorage.setItem('token', response.data.token)
+        localStorage.setItem('user', JSON.stringify(response.data.user))
+        ElMessage.success('登录成功')
+        emit('login-success')
+      } else {
+        ElMessage.success('注册成功，请登录')
+      }
       router.push('/')
     }
   } catch (err: any) {

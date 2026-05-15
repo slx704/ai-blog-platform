@@ -1,8 +1,8 @@
 const pool = require('../config/db')
 
-const DEEPSEEK_API_KEY = 'sk-enbaokepdpeljketbqlgxfkqnepyurqldfcfzyyqhilmzyzs'
-const API_URL = 'https://api.siliconflow.cn/v1'
-const MODEL = 'deepseek-ai/DeepSeek-V3'
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
+const API_URL = process.env.API_URL || 'https://api.siliconflow.cn/v1'
+const MODEL = process.env.MODEL || 'deepseek-ai/DeepSeek-V3'
 
 const chat = async (req, res) => {
     try {

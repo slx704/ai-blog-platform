@@ -159,6 +159,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { streamPolish, streamTranslate } from '../api/ai'
+import { devError } from '../utils/devLogger'
 
 const tools = [
   { id: 'polish', name: '文案润色', icon: '✨' },
@@ -205,12 +206,12 @@ const handlePolish = async () => {
       },
       (error) => {
         loading.value = false
-        console.error('润色失败:', error)
+        devError('润色失败:', error)
       }
     )
   } catch (err) {
     loading.value = false
-    console.error('润色失败:', err)
+    devError('润色失败:', err)
   }
 }
 
@@ -241,12 +242,12 @@ const handleTranslate = async () => {
       },
       (error) => {
         translateLoading.value = false
-        console.error('翻译失败:', error)
+        devError('翻译失败:', error)
       }
     )
   } catch (err) {
     translateLoading.value = false
-    console.error('翻译失败:', err)
+    devError('翻译失败:', err)
   }
 }
 
@@ -284,12 +285,12 @@ const handleChat = async () => {
       },
       (error) => {
         chatLoading.value = false
-        console.error('聊天失败:', error)
+        devError('聊天失败:', error)
       }
     )
   } catch (err) {
     chatLoading.value = false
-    console.error('聊天失败:', err)
+    devError('聊天失败:', err)
   }
 }
 </script>

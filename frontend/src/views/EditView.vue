@@ -147,6 +147,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
 import { fetchArticleById, createArticle, updateArticle } from '../api/articles'
 import { streamPolish } from '../api/ai'
+import { devError } from '../utils/devLogger'
 
 const route = useRoute()
 const router = useRouter()
@@ -290,13 +291,13 @@ const handlePolish = async () => {
       (error) => {
         polishing.value = false
         form.content = originalContent
-        console.error('润色失败:', error)
+        devError('润色失败:', error)
       }
     )
   } catch (err) {
     polishing.value = false
     form.content = originalContent
-    console.error('润色失败:', err)
+    devError('润色失败:', err)
   }
 }
 

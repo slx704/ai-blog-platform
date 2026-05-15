@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { isDeveloper } from '../api/auth'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -10,6 +12,9 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  if (isDeveloper()) {
+    console.log('[DEV Request]', config.method?.toUpperCase(), config.url, config.data || '')
+  }
   return config
 }, error => {
   return Promise.reject(error)
@@ -17,9 +22,16 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   response => {
+    if (isDeveloper()) {
+      console.log('[DEV Response]', response.config.url, response.data)
+    }
     return response.data
   },
   error => {
+    if (isDeveloper()) {
+      console.error('[DEV Error]', error.config?.url, error.message, error.response?.data)
+    }
+
     if (error.response) {
       const { status, data } = error.response
 
@@ -27,30 +39,33 @@ api.interceptors.response.use(
         case 401:
           localStorage.removeItem('token')
           localStorage.removeItem('user')
+          ElMessage.warning('登录已过期，请重新登录')
           if (window.location.pathname !== '/login') {
-            window.location.href = '/login'
+            setTimeout(() => {
+              window.location.href = '/login'
+            }, 1500)
           }
           break
         case 403:
-          console.error('没有权限操作')
+          ElMessage.error('没有权限操作')
           break
         case 404:
-          console.error('请求的资源不存在')
+          ElMessage.error('请求的资源不存在')
           break
         case 500:
-          console.error('服务器开小差了，请稍后重试')
+          ElMessage.error('服务器开小差了，请稍后重试')
           break
         default:
           if (data && data.message) {
-            console.error(data.message)
+            ElMessage.error(data.message)
           } else {
-            console.error('请求失败，请稍后重试')
+            ElMessage.error('请求失败，请稍后重试')
           }
       }
     } else if (error.request) {
-      console.error('网络连接失败，请检查网络')
+      ElMessage.error('网络连接失败，请检查网络')
     } else {
-      console.error('请求配置错误')
+      ElMessage.error('请求配置错误')
     }
 
     return Promise.reject(error)
