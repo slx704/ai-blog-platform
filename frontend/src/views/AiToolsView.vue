@@ -8,147 +8,117 @@
       
       <div class="tools-tabs">
         <button 
-          v-for="tool in tools" 
-          :key="tool.id"
-          :class="['tool-tab', { active: activeTool === tool.id }]"
-          @click="activeTool = tool.id"
+          v-for="tab in tabs" 
+          :key="tab.id"
+          :class="['tool-tab', { active: activeTab === tab.id }]"
+          @click="activeTab = tab.id"
         >
-          <span class="tool-icon">{{ tool.icon }}</span>
-          <span class="tool-name">{{ tool.name }}</span>
+          <span class="tool-icon">{{ tab.icon }}</span>
+          <span class="tool-name">{{ tab.name }}</span>
         </button>
       </div>
       
       <div class="tool-content">
-        <div v-if="activeTool === 'polish'" class="polish-tool">
-          <div class="tool-card">
-            <h3>✨ 文案润色</h3>
-            <p class="tool-desc">让AI帮你优化文案，让文字更加生动有力</p>
-            
-            <div class="input-section">
-              <textarea 
-                v-model="inputText" 
-                placeholder="输入需要润色的文案..."
-                rows="8"
-                class="input-textarea"
-              ></textarea>
+        <div v-if="activeTab === 'polish'" class="tool-card">
+          <h3>✨ 文案润色</h3>
+          <p class="tool-desc">让AI帮你优化文案，让文字更加生动有力</p>
+          
+          <div class="input-section">
+            <textarea 
+              v-model="inputText" 
+              placeholder="输入需要润色的文案..." 
+              class="input-textarea"
+              rows="6"
+            ></textarea>
+          </div>
+          
+          <div class="action-bar">
+            <button @click="handlePolish" :disabled="loading" class="action-btn primary">
+              <span v-if="loading" class="loading-spinner-small"></span>
+              开始润色
+            </button>
+            <button @click="clearAll" class="action-btn secondary">清空</button>
+          </div>
+          
+          <div v-if="outputText" class="output-section">
+            <div class="output-header">
+              <span>润色结果</span>
+              <button @click="copyOutput" class="copy-btn">复制</button>
             </div>
-            
-            <div class="action-bar">
-              <button 
-                @click="handlePolish"
-                :disabled="!inputText.trim() || loading"
-                class="action-btn primary"
-              >
-                <span v-if="loading" class="loading-spinner-small"></span>
-                {{ loading ? '润色中...' : '开始润色' }}
-              </button>
-              <button @click="clearAll" class="action-btn secondary">清空</button>
-            </div>
-            
-            <div v-if="outputText" class="output-section">
-              <div class="output-header">
-                <span>润色结果</span>
-                <button @click="copyOutput" class="copy-btn">复制</button>
-              </div>
-              <textarea 
-                :value="outputText" 
-                readonly
-                rows="8"
-                class="output-textarea"
-              ></textarea>
-            </div>
+            <textarea readonly class="output-textarea" rows="8">{{ outputText }}</textarea>
           </div>
         </div>
         
-        <div v-if="activeTool === 'translate'" class="translate-tool">
-          <div class="tool-card">
-            <h3>🌍 多语言翻译</h3>
-            <p class="tool-desc">支持多种语言互译，打破语言障碍</p>
-            
-            <div class="language-selector">
-              <select v-model="targetLang" class="lang-select">
-                <option value="中文">中文</option>
-                <option value="English">English</option>
-                <option value="日本語">日本語</option>
-                <option value="한국어">한국어</option>
-                <option value="Français">Français</option>
-                <option value="Deutsch">Deutsch</option>
-              </select>
+        <div v-if="activeTab === 'translate'" class="tool-card">
+          <h3>🌍 多语言翻译</h3>
+          <p class="tool-desc">支持多种语言互译，让你的内容走向世界</p>
+          
+          <div class="language-selector">
+            <select v-model="targetLang" class="lang-select">
+              <option value="中文">中文</option>
+              <option value="English">English</option>
+              <option value="日本語">日本語</option>
+              <option value="한국어">한국어</option>
+              <option value="Français">Français</option>
+              <option value="Español">Español</option>
+            </select>
+          </div>
+          
+          <div class="input-section">
+            <textarea 
+              v-model="translateInput" 
+              placeholder="输入需要翻译的文本..." 
+              class="input-textarea"
+              rows="6"
+            ></textarea>
+          </div>
+          
+          <div class="action-bar">
+            <button @click="handleTranslate" :disabled="translateLoading" class="action-btn primary">
+              <span v-if="translateLoading" class="loading-spinner-small"></span>
+              开始翻译
+            </button>
+            <button @click="clearTranslate" class="action-btn secondary">清空</button>
+          </div>
+          
+          <div v-if="translateOutput" class="output-section">
+            <div class="output-header">
+              <span>翻译结果</span>
+              <button @click="copyTranslate" class="copy-btn">复制</button>
             </div>
-            
-            <div class="input-section">
-              <textarea 
-                v-model="translateInput" 
-                placeholder="输入需要翻译的文本..."
-                rows="8"
-                class="input-textarea"
-              ></textarea>
-            </div>
-            
-            <div class="action-bar">
-              <button 
-                @click="handleTranslate"
-                :disabled="!translateInput.trim() || translateLoading"
-                class="action-btn primary"
-              >
-                <span v-if="translateLoading" class="loading-spinner-small"></span>
-                {{ translateLoading ? '翻译中...' : '开始翻译' }}
-              </button>
-              <button @click="clearTranslate" class="action-btn secondary">清空</button>
-            </div>
-            
-            <div v-if="translateOutput" class="output-section">
-              <div class="output-header">
-                <span>翻译结果</span>
-                <button @click="copyTranslate" class="copy-btn">复制</button>
-              </div>
-              <textarea 
-                :value="translateOutput" 
-                readonly
-                rows="8"
-                class="output-textarea"
-              ></textarea>
-            </div>
+            <textarea readonly class="output-textarea" rows="8">{{ translateOutput }}</textarea>
           </div>
         </div>
         
-        <div v-if="activeTool === 'chat'" class="chat-tool">
-          <div class="tool-card">
-            <h3>💬 AI聊天助手</h3>
-            <p class="tool-desc">与AI进行对话，获取专业解答</p>
-            
-            <div class="chat-history">
-              <div 
-                v-for="(msg, index) in chatMessages" 
-                :key="index"
-                :class="['chat-message', { user: msg.role === 'user' }]"
-              >
-                <div class="message-avatar">{{ msg.role === 'user' ? '👤' : '🤖' }}</div>
-                <div class="message-content">{{ msg.content }}</div>
-              </div>
-              
-              <div v-if="chatLoading" class="typing-indicator">
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
+        <div v-if="activeTab === 'chat'" class="tool-card">
+          <h3>💬 AI聊天</h3>
+          <p class="tool-desc">与AI对话，获取各种问题的解答</p>
+          
+          <div class="chat-history">
+            <div 
+              v-for="(message, index) in chatMessages" 
+              :key="index"
+              :class="['chat-message', message.role]"
+            >
+              <div class="message-avatar">{{ message.role === 'user' ? '👤' : '🤖' }}</div>
+              <div class="message-content">
+                <p>{{ message.content }}</p>
               </div>
             </div>
-            
-            <div class="chat-input">
-              <input 
-                v-model="chatInput" 
-                placeholder="输入你的问题..."
-                @keyup.enter="handleChat"
-                class="chat-input-field"
-              />
-              <button 
-                @click="handleChat"
-                :disabled="!chatInput.trim() || chatLoading"
-                class="send-btn"
-              >
-                发送
-              </button>
-            </div>
+          </div>
+          
+          <div class="chat-input-section">
+            <textarea 
+              v-model="chatInput" 
+              placeholder="输入你的问题..." 
+              class="input-textarea"
+              rows="3"
+              @keyup.enter="handleChat"
+            ></textarea>
+            <button @click="handleChat" :disabled="chatLoading || !chatInput.trim()" class="action-btn primary" style="width: 100%; margin-top: 10px;">
+              <span v-if="chatLoading" class="loading-spinner-small"></span>
+              发送
+            </button>
           </div>
         </div>
       </div>
@@ -157,17 +127,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { streamPolish, streamTranslate } from '../api/ai'
-import { devError } from '../utils/devLogger'
+import { devLog, devError } from '../utils/devLogger'
 
-const tools = [
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const activeTab = ref('polish')
+const tabs = [
   { id: 'polish', name: '文案润色', icon: '✨' },
   { id: 'translate', name: '多语言翻译', icon: '🌍' },
   { id: 'chat', name: 'AI聊天', icon: '💬' }
 ]
-
-const activeTool = ref('polish')
 
 const inputText = ref('')
 const outputText = ref('')
@@ -176,17 +150,10 @@ const loading = ref(false)
 const translateInput = ref('')
 const translateOutput = ref('')
 const translateLoading = ref(false)
-const targetLang = ref('中文')
+const targetLang = ref('English')
 
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-const chatMessages = ref<ChatMessage[]>([
-  { role: 'assistant', content: '你好！我是你的AI助手，有什么我可以帮你的吗？' }
-])
 const chatInput = ref('')
+const chatMessages = ref<ChatMessage[]>([])
 const chatLoading = ref(false)
 
 const handlePolish = async () => {
@@ -298,7 +265,7 @@ const handleChat = async () => {
 <style scoped>
 .ai-tools {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -323,7 +290,7 @@ const handleChat = async () => {
 }
 
 .page-header p {
-  color: #999;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -339,17 +306,17 @@ const handleChat = async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 25px;
-  background: white;
+  background: var(--bg-card);
   border: none;
   border-radius: 25px;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 5px var(--shadow);
 }
 
 .tool-tab:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 .tool-tab.active {
@@ -375,19 +342,20 @@ const handleChat = async () => {
 }
 
 .tool-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 30px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .tool-card h3 {
   font-size: 20px;
+  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
 .tool-desc {
-  color: #999;
+  color: var(--text-muted);
   margin: 0 0 20px 0;
 }
 
@@ -397,10 +365,11 @@ const handleChat = async () => {
 
 .lang-select {
   padding: 10px 15px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
-  background: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .input-section {
@@ -410,11 +379,18 @@ const handleChat = async () => {
 .input-textarea {
   width: 100%;
   padding: 15px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
   resize: vertical;
   font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.input-textarea:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .action-bar {
@@ -443,12 +419,12 @@ const handleChat = async () => {
 }
 
 .action-btn.secondary {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .action-btn.secondary:hover {
-  background: #e0e0e0;
+  background: var(--border-color);
 }
 
 .action-btn:disabled {
@@ -473,7 +449,7 @@ const handleChat = async () => {
 }
 
 .output-section {
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 15px;
 }
@@ -484,6 +460,7 @@ const handleChat = async () => {
   align-items: center;
   margin-bottom: 10px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .copy-btn {
@@ -499,19 +476,20 @@ const handleChat = async () => {
 .output-textarea {
   width: 100%;
   padding: 15px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
   resize: vertical;
   font-family: inherit;
-  background: white;
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 .chat-history {
   height: 400px;
   overflow-y: auto;
   padding: 20px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   margin-bottom: 20px;
 }
@@ -527,107 +505,58 @@ const handleChat = async () => {
 }
 
 .message-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
+  font-size: 16px;
 }
 
 .chat-message.user .message-avatar {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.chat-message.assistant .message-avatar {
+  background: var(--bg-card);
 }
 
 .message-content {
   max-width: 70%;
   padding: 12px 16px;
-  background: white;
-  border-radius: 15px;
-  font-size: 14px;
-  line-height: 1.6;
+  border-radius: 18px;
 }
 
 .chat-message.user .message-content {
-  background: #667eea;
-  color: white;
-  border-radius: 15px;
-}
-
-.typing-indicator {
-  display: flex;
-  gap: 6px;
-  padding: 12px;
-}
-
-.typing-dot {
-  width: 8px;
-  height: 8px;
-  background: #999;
-  border-radius: 50%;
-  animation: typing 1.4s infinite ease-in-out;
-}
-
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typing {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
-  40% { transform: scale(1); opacity: 1; }
-}
-
-.chat-input {
-  display: flex;
-  gap: 10px;
-}
-
-.chat-input-field {
-  flex: 1;
-  padding: 12px 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 25px;
-  font-size: 14px;
-}
-
-.send-btn {
-  padding: 12px 25px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border: none;
-  border-radius: 25px;
-  cursor: pointer;
+  border-radius: 18px 18px 4px 18px;
 }
 
-.send-btn:disabled {
-  opacity: 0.6;
+.chat-message.assistant .message-content {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 18px 18px 18px 4px;
+}
+
+.chat-input-section {
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 768px) {
-  .tool-card {
-    padding: 20px;
-  }
-  
   .tools-tabs {
-    flex-wrap: wrap;
+    gap: 10px;
   }
   
   .tool-tab {
     padding: 10px 18px;
+    font-size: 13px;
   }
   
-  .action-bar {
-    flex-direction: column;
-  }
-  
-  .action-btn {
-    width: 100%;
-  }
-  
-  .chat-history {
-    height: 300px;
+  .tool-card {
+    padding: 20px;
   }
   
   .message-content {

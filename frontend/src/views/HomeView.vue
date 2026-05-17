@@ -155,7 +155,7 @@ watch(() => route.query.q, () => {
 <style scoped>
 .home {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -183,7 +183,7 @@ watch(() => route.query.q, () => {
 
 .subtitle {
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 8px;
 }
 
@@ -198,16 +198,17 @@ watch(() => route.query.q, () => {
   padding: 10px 25px;
   border: none;
   border-radius: 25px;
-  background: white;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 5px var(--shadow);
 }
 
 .tab-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px var(--shadow);
 }
 
 .tab-btn.active {
@@ -223,7 +224,7 @@ watch(() => route.query.q, () => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e0e0e0;
+  border: 3px solid var(--border-color);
   border-top: 3px solid #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -258,7 +259,7 @@ watch(() => route.query.q, () => {
 .empty {
   text-align: center;
   padding: 60px 0;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .article-list {
@@ -268,16 +269,16 @@ watch(() => route.query.q, () => {
 }
 
 .article-card {
-  background: white;
+  background: var(--bg-card);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
   transition: all 0.3s;
 }
 
 .article-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px var(--shadow);
 }
 
 .article-link {
@@ -294,16 +295,16 @@ watch(() => route.query.q, () => {
 
 .tag {
   padding: 3px 10px;
-  background: #f0f0f0;
+  background: var(--bg-secondary);
   border-radius: 15px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .article-title {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 12px 0;
   line-height: 1.4;
 }
@@ -314,7 +315,7 @@ watch(() => route.query.q, () => {
 
 .article-meta {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
   margin-bottom: 12px;
   display: flex;
   gap: 4px;
@@ -324,7 +325,7 @@ watch(() => route.query.q, () => {
 .article-excerpt {
   font-size: 14px;
   line-height: 1.6;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0;
 }
 

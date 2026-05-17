@@ -55,3 +55,15 @@ export const fetchArticlesByCategory = async (category: string): Promise<Article
   const response = await api.get(`/articles?category=${encodeURIComponent(category)}`)
   return response.data
 }
+
+export const updateViewCount = async (id: number): Promise<void> => {
+  await api.patch(`/articles/${id}/view`)
+}
+
+export const likeArticle = async (id: number): Promise<void> => {
+  await api.post(`/articles/${id}/like`)
+}
+
+export const unlikeArticle = async (id: number): Promise<void> => {
+  await api.delete(`/articles/${id}/like`)
+}

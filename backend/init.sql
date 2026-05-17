@@ -8,6 +8,7 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL,
   avatar TEXT NULL,
   signature TEXT NULL,
+  bio TEXT NULL,
   age INT NULL,
   total_tokens INT DEFAULT 0,
   role ENUM('developer', 'user') DEFAULT 'user',

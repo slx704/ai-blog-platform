@@ -6,18 +6,11 @@
         <div class="header-actions">
           <span class="markdown-hint">支持 Markdown 语法</span>
           <div class="ai-tools">
-            <button 
-              :disabled="!form.content.trim() || polishing"
-              @click="handlePolish"
-              class="ai-btn polish-btn"
-            >
+            <button @click="handlePolish" :disabled="polishing" class="ai-btn polish-btn">
               ✨ AI润色
             </button>
-            <button 
-              @click="showTagModal = true"
-              class="ai-btn tag-btn"
-            >
-              🏷️ 添加标签
+            <button @click="toggleTag('AI')" :class="['ai-btn tag-btn', form.tags.includes('AI') ? 'selected' : '']">
+              🏷️ AI
             </button>
           </div>
         </div>
@@ -25,115 +18,90 @@
       
       <div v-if="error" class="error-msg">
         {{ error }}
-        <button @click="fetchArticleData" class="retry-btn">重试</button>
       </div>
       
       <form @submit.prevent="submitForm" class="edit-form">
         <div class="form-group">
-          <label for="title">标题</label>
-          <input 
-            id="title"
-            v-model="form.title"
-            type="text" 
-            placeholder="请输入标题" 
-            class="form-input"
-          />
+          <label>标题</label>
+          <input v-model="form.title" type="text" placeholder="请输入标题" class="form-input" />
           <span v-if="errors.title" class="field-error">{{ errors.title }}</span>
         </div>
         
         <div class="form-group">
           <label>分区</label>
           <div class="category-selector">
-            <button 
-              v-for="cat in categories" 
-              :key="cat.id"
-              :class="['category-btn', { active: form.category === cat.id }]"
-              @click="selectCategory(cat.id)"
-              type="button"
-            >
-              {{ cat.icon }} {{ cat.name }}
+            <button type="button" @click="form.category = 'daily'" :class="['category-btn', { active: form.category === 'daily' }]">
+              🏠 日常
+            </button>
+            <button type="button" @click="form.category = 'code'" :class="['category-btn', { active: form.category === 'code' }]">
+              💻 代码
             </button>
           </div>
           <span v-if="errors.category" class="field-error">{{ errors.category }}</span>
         </div>
         
-        <div v-if="form.category" class="form-group">
+        <div class="form-group">
           <label>标签</label>
           <div class="tags-selector">
             <button 
-              v-for="tag in filteredTags" 
+              v-for="tag in availableTags" 
               :key="tag"
-              :class="['tag-btn', { selected: form.tags?.includes(tag) }]"
-              @click="toggleTag(tag)"
               type="button"
+              @click="toggleTag(tag)"
+              :class="['tag-btn', { selected: form.tags.includes(tag) }]"
             >
               {{ tag }}
             </button>
             <button 
-              :class="['tag-btn', { expanded: showCustomInput }]"
-              @click="showCustomInput = !showCustomInput"
               type="button"
+              @click="showCustomInput = !showCustomInput"
+              class="tag-btn expanded"
             >
-              + 自定义
+              + 添加标签
             </button>
             <div v-if="showCustomInput" class="custom-tag-inline">
-              <input 
-                ref="customTagInput"
-                v-model="newTag" 
-                type="text" 
-                placeholder="输入标签"
-                @keyup.enter="handleAddCustomTag"
-                class="custom-tag-inline-input"
-              />
-              <button @click="handleAddCustomTag" type="button" class="custom-tag-add-btn">+</button>
-              <button @click="showCustomInput = false; newTag = ''" type="button" class="custom-tag-close-btn">×</button>
+              <input v-model="newTag" type="text" placeholder="输入标签" class="custom-tag-inline-input" @keyup.enter="handleAddCustomTag" />
+              <button type="button" @click="handleAddCustomTag" class="custom-tag-add-btn">+</button>
+              <button type="button" @click="showCustomInput = false" class="custom-tag-close-btn">×</button>
             </div>
           </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group content-group">
-            <label for="content">正文</label>
-            <textarea 
-              id="content"
-              v-model="form.content"
-              placeholder="支持 Markdown 语法..."
-              rows="16"
-              class="form-input content-input"
-            ></textarea>
-            <span v-if="errors.content" class="field-error">{{ errors.content }}</span>
-            
-            <div v-if="polishing" class="polishing-indicator">
-              <span class="loading-text">✨ AI正在润色中...</span>
-            </div>
-          </div>
-          
-          <div class="preview-panel">
-            <div class="preview-header">
-              <span>实时预览</span>
-            </div>
-            <div class="preview-content markdown-body" v-html="renderedPreview"></div>
-          </div>
-        </div>
-        
-        <div class="selected-tags" v-if="form.tags && form.tags.length > 0">
-          <span class="tags-label">已选标签:</span>
-          <div class="tags-list">
+          <div v-if="form.tags.length > 0" class="selected-tags">
             <span 
               v-for="tag in form.tags" 
               :key="tag" 
               class="selected-tag"
             >
               {{ tag }}
-              <button @click="removeTag(tag)" class="remove-tag">×</button>
+              <button type="button" @click="removeTag(tag)" class="remove-tag-btn">×</button>
             </span>
           </div>
         </div>
         
+        <div class="form-row">
+          <div class="content-group">
+            <label>正文</label>
+            <textarea 
+              v-model="form.content" 
+              placeholder="支持 Markdown 语法..." 
+              class="form-input content-input"
+              rows="20"
+            ></textarea>
+            <span v-if="polishing" class="polishing-indicator">
+              <span class="loading-text">AI 正在润色...</span>
+            </span>
+            <span v-if="errors.content" class="field-error">{{ errors.content }}</span>
+          </div>
+          
+          <div class="preview-panel">
+            <div class="preview-header">实时预览</div>
+            <div class="preview-content" v-html="renderedPreview"></div>
+          </div>
+        </div>
+        
         <div class="form-actions">
-          <button type="button" @click="goBack" class="btn cancel">取消</button>
-          <button type="submit" class="btn submit" :disabled="loading">
-            {{ loading ? '处理中...' : (isEditMode ? '更新' : '发布') }}
+          <button type="button" @click="goBack" class="cancel-btn">取消</button>
+          <button type="submit" :disabled="loading" class="submit-btn">
+            {{ isEditMode ? '保存修改' : '发布文章' }}
           </button>
         </div>
       </form>
@@ -142,65 +110,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { marked } from 'marked'
-import { fetchArticleById, createArticle, updateArticle } from '../api/articles'
+import DOMPurify from 'dompurify'
+import { createArticle, updateArticle, fetchArticleById } from '../api/articles'
 import { streamPolish } from '../api/ai'
 import { devError } from '../utils/devLogger'
 
-const route = useRoute()
 const router = useRouter()
+const route = useRoute()
 
-const isEditMode = computed(() => !!route.params.id)
-const articleId = computed(() => Number(route.params.id))
-
-const categories = [
-  { id: 'daily', name: '日常', icon: '🏠' },
-  { id: 'code', name: '代码', icon: '💻' }
-]
-
-const categoryTags = {
-  daily: ['日常', '生活', '分享'],
-  code: ['前端', '后端', 'AI', '技术']
-}
+const isEditMode = ref(false)
+const articleId = ref(0)
+const loading = ref(false)
+const polishing = ref(false)
+const error = ref('')
+const showCustomInput = ref(false)
+const newTag = ref('')
 
 const form = reactive({
   title: '',
   content: '',
-  category: '',
-  tags: [] as string[]
+  category: 'daily',
+  tags: []
 })
 
 const errors = reactive({
   title: '',
-  content: '',
-  category: ''
+  category: '',
+  content: ''
 })
 
-const loading = ref(false)
-const polishing = ref(false)
-const error = ref('')
-const newTag = ref('')
-const showCustomInput = ref(false)
-const customTagInput = ref<HTMLInputElement | null>(null)
-
-const filteredTags = computed(() => {
-  if (!form.category) return []
-  return categoryTags[form.category as keyof typeof categoryTags] || []
-})
+const availableTags = ['日常', '生活', '分享', '前端', '后端', 'AI', '技术']
 
 const renderedPreview = computed(() => {
-  if (!form.content) return ''
-  return marked.parse(form.content, { async: false }) as string
+  if (!form.content.trim()) return '<p>预览将在这里显示...</p>'
+  const html = marked(form.content)
+  return DOMPurify.sanitize(html)
 })
-
-const selectCategory = (category: string) => {
-  if (form.category !== category) {
-    form.category = category
-    form.tags = []
-  }
-}
 
 const validate = () => {
   let valid = true
@@ -317,15 +265,6 @@ const removeTag = (tag: string) => {
   }
 }
 
-const addCustomTag = () => {
-  const tag = newTag.value.trim()
-  if (tag && !form.tags.includes(tag)) {
-    form.tags.push(tag)
-    newTag.value = ''
-    showCustomInput.value = false
-  }
-}
-
 const handleAddCustomTag = () => {
   const tag = newTag.value.trim()
   if (tag && !form.tags.includes(tag)) {
@@ -336,6 +275,11 @@ const handleAddCustomTag = () => {
 }
 
 onMounted(() => {
+  const id = route.params.id
+  if (id) {
+    isEditMode.value = true
+    articleId.value = parseInt(id as string)
+  }
   fetchArticleData()
 })
 </script>
@@ -343,7 +287,7 @@ onMounted(() => {
 <style scoped>
 .edit {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -359,13 +303,13 @@ onMounted(() => {
   align-items: baseline;
   margin-bottom: 25px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .edit-header h1 {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -377,7 +321,7 @@ onMounted(() => {
 
 .markdown-hint {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .ai-tools {
@@ -426,20 +370,11 @@ onMounted(() => {
   text-align: center;
 }
 
-.retry-btn {
-  margin-left: 10px;
-  padding: 4px 12px;
-  background: #2e6b2f;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
 .edit-form {
-  background: white;
+  background: var(--bg-card);
   padding: 30px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .form-group {
@@ -450,18 +385,20 @@ onMounted(() => {
   display: block;
   font-weight: 500;
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .form-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .form-input:focus {
@@ -475,9 +412,9 @@ onMounted(() => {
 
 .category-btn {
   padding: 12px 24px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-primary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s;
@@ -485,7 +422,7 @@ onMounted(() => {
 
 .category-btn:hover {
   border-color: #667eea;
-  background: #f0f2f5;
+  background: var(--bg-secondary);
 }
 
 .category-btn.active {
@@ -505,7 +442,7 @@ onMounted(() => {
   padding: 10px 20px;
   border: 2px solid #667eea;
   border-radius: 25px;
-  background: white;
+  background: var(--bg-primary);
   font-size: 14px;
   font-weight: 500;
   color: #667eea;
@@ -543,6 +480,8 @@ onMounted(() => {
   font-size: 13px;
   width: 120px;
   outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .custom-tag-inline-input:focus {
@@ -553,7 +492,7 @@ onMounted(() => {
   padding: 10px 14px;
   border: 2px solid #667eea;
   border-radius: 50%;
-  background: white;
+  background: var(--bg-primary);
   color: #667eea;
   font-size: 16px;
   font-weight: bold;
@@ -568,10 +507,10 @@ onMounted(() => {
 
 .custom-tag-close-btn {
   padding: 10px 14px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--border-color);
   border-radius: 50%;
-  background: white;
-  color: #999;
+  background: var(--bg-primary);
+  color: var(--text-muted);
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
@@ -583,36 +522,29 @@ onMounted(() => {
   color: #d32f2f;
 }
 
-.custom-tag-input {
+.selected-tags {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.custom-tag-input-field {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.custom-tag-input-field:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.add-tag-btn {
-  padding: 10px 20px;
+.selected-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
   background: #667eea;
   color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
+  border-radius: 15px;
+  font-size: 13px;
 }
 
-.add-tag-btn:hover {
-  background: #5a6fd6;
+.remove-tag-btn {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .content-input {
@@ -654,8 +586,8 @@ onMounted(() => {
 }
 
 .preview-panel {
-  background: #fafbfd;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -665,12 +597,12 @@ onMounted(() => {
 }
 
 .preview-header {
-  background: #f0f2f5;
+  background: var(--bg-card);
   padding: 10px 15px;
   font-size: 13px;
   font-weight: 500;
   color: #667eea;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .preview-content {
@@ -678,7 +610,7 @@ onMounted(() => {
   padding: 20px;
   font-size: 14px;
   line-height: 1.7;
-  color: #333;
+  color: var(--text-primary);
   overflow-y: auto;
   max-height: 500px;
 }
@@ -687,7 +619,7 @@ onMounted(() => {
   font-size: 20px;
   margin: 16px 0 12px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .preview-content :deep(h2) {
@@ -700,7 +632,7 @@ onMounted(() => {
 }
 
 .preview-content :deep(code) {
-  background: #f0f2f5;
+  background: var(--bg-primary);
   padding: 2px 5px;
   font-family: 'Consolas', monospace;
   font-size: 12px;
@@ -708,131 +640,84 @@ onMounted(() => {
 }
 
 .preview-content :deep(pre) {
-  background: #f6f8fa;
+  background: #1e1e1e;
   padding: 10px;
   overflow-x: auto;
-  border: 1px solid #e1e4e8;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
+  color: #ccc;
 }
 
 .preview-content :deep(blockquote) {
   border-left: 3px solid #667eea;
   margin: 12px 0;
   padding-left: 12px;
-  color: #666;
-}
-
-.selected-tags {
-  margin-bottom: 20px;
-  padding: 15px;
-  background: #fafafa;
-  border-radius: 8px;
-}
-
-.tags-label {
-  font-size: 13px;
-  color: #666;
-  margin-right: 10px;
-}
-
-.tags-list {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.selected-tag {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  background: #667eea;
-  color: white;
-  border-radius: 15px;
-  font-size: 12px;
-}
-
-.remove-tag {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
+  color: var(--text-secondary);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 15px;
   margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
 }
 
-.btn {
-  padding: 10px 28px;
-  font-size: 14px;
-  cursor: pointer;
+.cancel-btn {
+  padding: 12px 24px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
   border: none;
   border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
   transition: all 0.3s;
 }
 
-.cancel {
-  background: #f0f0f0;
-  color: #666;
+.cancel-btn:hover {
+  background: var(--border-color);
 }
 
-.cancel:hover {
-  background: #e0e0e0;
-}
-
-.submit {
+.submit-btn {
+  padding: 12px 36px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
 }
 
-.submit:hover:not(:disabled) {
+.submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.submit:disabled {
+.submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
-  .edit-header {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  
   .form-row {
     grid-template-columns: 1fr;
   }
   
-  .edit-form {
-    padding: 20px;
+  .preview-panel {
+    display: none;
   }
   
-  .form-actions {
+  .edit-header {
     flex-direction: column;
+    gap: 15px;
   }
   
-  .btn {
-    width: 100%;
-  }
-  
-  .category-selector {
+  .header-actions {
     flex-wrap: wrap;
   }
   
-  .category-btn {
-    flex: 1;
-    min-width: 100px;
+  .edit-form {
+    padding: 20px;
   }
 }
 </style>

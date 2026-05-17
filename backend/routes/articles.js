@@ -9,5 +9,8 @@ router.get('/:id', articleController.getArticleById)
 router.post('/', authenticateToken, articleController.createArticle)
 router.put('/:id', authenticateToken, articleController.updateArticle)
 router.delete('/:id', authenticateToken, articleController.deleteArticle)
+router.patch('/:id/view', articleController.updateViewCount)
+router.post('/:id/like', authenticateToken, articleController.likeArticle)
+router.delete('/:id/like', authenticateToken, articleController.unlikeArticle)
 
 module.exports = router

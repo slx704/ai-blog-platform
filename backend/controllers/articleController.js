@@ -181,19 +181,19 @@ const deleteArticle = async (req, res) => {
         }
 
         await pool.query('DELETE FROM article_tags WHERE article_id = ?', [id])
-        
+
         try {
             await pool.query('DELETE FROM comments WHERE article_id = ?', [id])
         } catch (e) {
             console.log('comments table may not exist, skipping')
         }
-        
+
         try {
             await pool.query('DELETE FROM article_likes WHERE article_id = ?', [id])
         } catch (e) {
             console.log('article_likes table may not exist, skipping')
         }
-        
+
         await pool.query('DELETE FROM articles WHERE id = ?', [id])
 
         res.json({
@@ -234,4 +234,39 @@ const searchArticles = async (req, res) => {
     }
 }
 
-module.exports = { getAllArticles, getArticleById, createArticle, updateArticle, deleteArticle, searchArticles }
+const updateViewCount = async (req, res) => {
+    try {
+        const { id } = req.params
+        await pool.query('UPDATE articles SET view_count = view_count + 1 WHERE id = ?', [id])
+        res.json({ success: true, message: '浏览次数已更新' })
+    } catch (error) {
+        console.error('更新浏览次数失败:', error)
+        res.status(500).json({ success: false, message: '更新浏览次数失败' })
+    }
+}
+
+const likeArticle = async (req, res) => {
+    try {
+        const { id } = req.params
+        await pool.query('INSERT INTO article_likes (user_id, article_id) VALUES (?, ?)', [req.user.id, id])
+        await pool.query('UPDATE articles SET like_count = like_count + 1 WHERE id = ?', [id])
+        res.json({ success: true, message: '点赞成功' })
+    } catch (error) {
+        console.error('点赞失败:', error)
+        res.status(500).json({ success: false, message: '点赞失败' })
+    }
+}
+
+const unlikeArticle = async (req, res) => {
+    try {
+        const { id } = req.params
+        await pool.query('DELETE FROM article_likes WHERE user_id = ? AND article_id = ?', [req.user.id, id])
+        await pool.query('UPDATE articles SET like_count = GREATEST(like_count - 1, 0) WHERE id = ?', [id])
+        res.json({ success: true, message: '取消点赞成功' })
+    } catch (error) {
+        console.error('取消点赞失败:', error)
+        res.status(500).json({ success: false, message: '取消点赞失败' })
+    }
+}
+
+module.exports = { getAllArticles, getArticleById, createArticle, updateArticle, deleteArticle, searchArticles, updateViewCount, likeArticle, unlikeArticle }

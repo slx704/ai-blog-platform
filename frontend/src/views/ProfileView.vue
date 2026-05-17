@@ -14,8 +14,9 @@
               <span v-else class="avatar-icon">👤</span>
             </div>
             <div class="user-info">
-              <h2 class="username">{{ profile.username }}</h2>
+              <h2 class="username">{{ profile.nickname || profile.username }}</h2>
               <p class="signature">{{ profile.signature || '暂无签名' }}</p>
+              <p class="bio">{{ profile.bio || '暂无个性签名' }}</p>
               <div class="user-stats">
                 <span class="stat-item">🎂 {{ profile.age || '未知' }} 岁</span>
                 <span class="stat-item">📅 {{ formatDate(profile.created_at) }} 加入</span>
@@ -23,7 +24,10 @@
               </div>
             </div>
           </div>
-          <button @click="openEditModal" class="edit-btn">编辑资料</button>
+          <div class="header-buttons">
+            <button @click="openEditModal" class="edit-btn">编辑资料</button>
+            <button @click="openPasswordModal" class="password-btn">修改密码</button>
+          </div>
         </div>
         
         <div class="profile-tabs">
@@ -114,8 +118,55 @@
               <button v-if="editForm.avatar || profile.avatar" @click="removeAvatar" class="remove-avatar-btn">移除头像</button>
             </div>
             <div class="form-group">
-              <label>签名</label>
-              <input v-model="editForm.signature" type="text" placeholder="输入签名" class="form-input" />
+              <label>昵称</label>
+              <input v-model="editForm.nickname" type="text" placeholder="输入昵称" class="form-input" maxlength="36" />
+            </div>
+            <div class="form-group">
+              <label>个性签名</label>
+              <textarea 
+                v-model="editForm.bio" 
+                placeholder="输入个性签名" 
+                class="form-input bio-input" 
+                rows="1"
+                @input="autoResizeTextarea"
+                maxlength="80"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label>性别</label>
+              <select v-model="editForm.gender" class="form-input">
+                <option value="">请选择性别</option>
+                <option value="male">男</option>
+                <option value="female">女</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>生日</label>
+              <div class="birthday-selector">
+                <select v-model="editForm.birthMonth" class="form-input month-select">
+                  <option value="">选择月份</option>
+                  <option v-for="month in months" :key="month.value" :value="month.value">{{ month.label }}</option>
+                </select>
+                <select v-model="editForm.birthDay" class="form-input day-select">
+                  <option value="">选择日期</option>
+                  <option v-for="day in days" :key="day" :value="day">{{ day }}日</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>国家</label>
+                <input v-model="editForm.country" type="text" placeholder="请选择" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>省份</label>
+                <input v-model="editForm.province" type="text" placeholder="请选择" class="form-input" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>地区</label>
+              <input v-model="editForm.city" type="text" placeholder="请选择" class="form-input" />
             </div>
             <div class="form-group">
               <label>年龄</label>
@@ -128,14 +179,49 @@
           </div>
         </div>
       </div>
+
+      <div v-if="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal = false">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>修改密码</h3>
+            <button @click="showPasswordModal = false" class="close-btn">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>原密码</label>
+              <input v-model="passwordForm.oldPassword" type="password" placeholder="请输入原密码" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>新密码</label>
+              <input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" class="form-input" @input="checkPasswordStrength" />
+              <div class="password-strength">
+                <div class="strength-bar">
+                  <div class="strength-fill" :class="passwordStrengthClass" :style="{ width: passwordStrengthWidth }"></div>
+                </div>
+                <span class="strength-text" :class="passwordStrengthClass">{{ passwordStrengthText }}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>确认新密码</label>
+              <input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" class="form-input" />
+              <span v-if="passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword" class="field-error">两次输入的密码不一致</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="showPasswordModal = false" class="cancel-btn">取消</button>
+            <button @click="handleUpdatePassword" class="confirm-btn" :disabled="!canSubmitPassword">保存</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getProfile, updateProfile, getUserArticles, getUserLikes } from '../api/users'
+import { ElMessage } from 'element-plus'
+import { getProfile, updateProfile, updatePassword, getUserArticles, getUserLikes } from '../api/users'
 import { deleteArticle } from '../api/articles'
 import { devError } from '../utils/devLogger'
 
@@ -144,6 +230,13 @@ interface UserProfile {
   username: string
   avatar?: string
   signature?: string
+  bio?: string
+  nickname?: string
+  gender?: 'male' | 'female' | 'other'
+  birthday?: string
+  country?: string
+  province?: string
+  city?: string
   age?: number
   total_tokens: number
   created_at: string
@@ -173,6 +266,13 @@ const profile = ref<UserProfile>({
   id: 0,
   username: '',
   signature: '',
+  bio: '',
+  nickname: '',
+  gender: undefined,
+  birthday: '',
+  country: '',
+  province: '',
+  city: '',
   age: undefined,
   total_tokens: 0,
   created_at: new Date().toISOString()
@@ -183,11 +283,69 @@ const historyRecords = ref<HistoryRecord[]>([])
 const loading = ref(false)
 const activeTab = ref('articles')
 const showEditModal = ref(false)
+const showPasswordModal = ref(false)
+const passwordStrength = ref(0)
 
 const editForm = reactive({
   avatar: '',
   signature: '',
+  bio: '',
+  nickname: '',
+  gender: '',
+  birthMonth: '',
+  birthDay: '',
+  country: '',
+  province: '',
+  city: '',
   age: 0
+})
+
+const months = [
+  { value: '01', label: '1月' },
+  { value: '02', label: '2月' },
+  { value: '03', label: '3月' },
+  { value: '04', label: '4月' },
+  { value: '05', label: '5月' },
+  { value: '06', label: '6月' },
+  { value: '07', label: '7月' },
+  { value: '08', label: '8月' },
+  { value: '09', label: '9月' },
+  { value: '10', label: '10月' },
+  { value: '11', label: '11月' },
+  { value: '12', label: '12月' }
+]
+
+const days = Array.from({ length: 31 }, (_, i) => i + 1)
+
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const passwordStrengthClass = computed(() => {
+  if (passwordStrength.value === 0) return ''
+  if (passwordStrength.value === 1) return 'weak'
+  if (passwordStrength.value === 2) return 'medium'
+  return 'strong'
+})
+
+const passwordStrengthWidth = computed(() => {
+  return passwordStrength.value === 0 ? '0%' : `${passwordStrength.value * 33.33}%`
+})
+
+const passwordStrengthText = computed(() => {
+  if (passwordStrength.value === 0) return ''
+  if (passwordStrength.value === 1) return '弱'
+  if (passwordStrength.value === 2) return '中'
+  return '强'
+})
+
+const canSubmitPassword = computed(() => {
+  return passwordForm.oldPassword &&
+         passwordForm.newPassword &&
+         passwordForm.newPassword.length >= 6 &&
+         passwordForm.newPassword === passwordForm.confirmPassword
 })
 
 const tabs = [
@@ -263,8 +421,31 @@ const handleDeleteArticle = async (articleId: number) => {
 const openEditModal = () => {
   editForm.avatar = ''
   editForm.signature = profile.value.signature || ''
+  editForm.bio = profile.value.bio || ''
+  editForm.nickname = profile.value.nickname || ''
+  editForm.gender = profile.value.gender || ''
+  if (profile.value.birthday) {
+    const dateStr = profile.value.birthday.split('T')[0]
+    const parts = dateStr.split('-')
+    editForm.birthMonth = parts[1] || ''
+    editForm.birthDay = parts[2] ? parts[2].substring(0, 2) : ''
+  } else {
+    editForm.birthMonth = ''
+    editForm.birthDay = ''
+  }
+  editForm.country = profile.value.country || ''
+  editForm.province = profile.value.province || ''
+  editForm.city = profile.value.city || ''
   editForm.age = profile.value.age || 0
   showEditModal.value = true
+}
+
+const openPasswordModal = () => {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  passwordStrength.value = 0
+  showPasswordModal.value = true
 }
 
 const handleAvatarUpload = (event: Event) => {
@@ -285,17 +466,74 @@ const removeAvatar = () => {
 
 const handleUpdateProfile = async () => {
   try {
-    await updateProfile({
-      avatar: editForm.avatar || undefined,
-      signature: editForm.signature || undefined,
-      age: editForm.age || undefined
-    })
+    const data: Record<string, any> = {}
+    if (editForm.avatar) data.avatar = editForm.avatar
+    if (editForm.signature) data.signature = editForm.signature
+    if (editForm.bio) data.bio = editForm.bio
+    if (editForm.nickname) data.nickname = editForm.nickname
+    if (editForm.gender) data.gender = editForm.gender
+    if (editForm.birthMonth && editForm.birthDay) {
+      data.birthday = `0000-${editForm.birthMonth}-${String(editForm.birthDay).padStart(2, '0')}`
+    }
+    if (editForm.country) data.country = editForm.country
+    if (editForm.province) data.province = editForm.province
+    if (editForm.city) data.city = editForm.city
+    if (editForm.age > 0) data.age = editForm.age
+      
+    await updateProfile(data)
     await fetchProfile()
     showEditModal.value = false
     editForm.avatar = ''
+    ElMessage.success('资料更新成功')
   } catch (err) {
     devError('更新资料失败:', err)
+    ElMessage.error('更新资料失败')
   }
+}
+
+const checkPasswordStrength = () => {
+  const password = passwordForm.newPassword
+  if (!password) {
+    passwordStrength.value = 0
+    return
+  }
+  
+  let strength = 0
+  
+  if (password.length >= 6) strength++
+  if (password.length >= 8) strength++
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++
+  if (/\d/.test(password)) strength++
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++
+  
+  if (strength <= 2) passwordStrength.value = 1
+  else if (strength <= 3) passwordStrength.value = 2
+  else passwordStrength.value = 3
+}
+
+const handleUpdatePassword = async () => {
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.error('两次输入的密码不一致')
+    return
+  }
+  
+  try {
+    await updatePassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword
+    })
+    showPasswordModal.value = false
+    ElMessage.success('密码修改成功')
+  } catch (err: any) {
+    devError('修改密码失败:', err)
+    ElMessage.error(err.response?.data?.message || '修改密码失败')
+  }
+}
+
+const autoResizeTextarea = (event: Event) => {
+  const target = event.target as HTMLTextAreaElement
+  target.style.height = 'auto'
+  target.style.height = Math.min(target.scrollHeight, 150) + 'px'
 }
 
 onMounted(() => {
@@ -306,7 +544,7 @@ onMounted(() => {
 <style scoped>
 .profile {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -324,7 +562,7 @@ onMounted(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e0e0e0;
+  border: 3px solid var(--border-color);
   border-top: 3px solid #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -337,9 +575,9 @@ onMounted(() => {
 }
 
 .profile-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
   overflow: hidden;
 }
 
@@ -348,7 +586,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   padding: 30px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
 }
 
 .avatar-section {
@@ -360,7 +603,7 @@ onMounted(() => {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -380,18 +623,26 @@ onMounted(() => {
 .user-info h2 {
   font-size: 24px;
   margin: 0 0 8px 0;
+  color: var(--text-primary);
 }
 
 .user-info .signature {
-  color: #666;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+}
+
+.user-info .bio {
+  color: var(--text-muted);
+  font-size: 14px;
   margin: 0 0 12px 0;
+  line-height: 1.5;
 }
 
 .user-stats {
   display: flex;
   gap: 15px;
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .stat-item {
@@ -400,20 +651,35 @@ onMounted(() => {
   gap: 4px;
 }
 
-.edit-btn {
+.edit-btn, .password-btn {
   padding: 10px 20px;
   background: #667eea;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.password-btn {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.password-btn:hover {
+  background: #e0e0e0;
+}
+
+.edit-btn:hover {
+  background: #5568d3;
 }
 
 .profile-tabs {
   display: flex;
   gap: 20px;
   padding: 20px 30px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tab-btn {
@@ -424,10 +690,11 @@ onMounted(() => {
   cursor: pointer;
   border-radius: 20px;
   transition: all 0.3s;
+  color: var(--text-secondary);
 }
 
 .tab-btn:hover {
-  background: #f5f7fa;
+  background: var(--bg-secondary);
 }
 
 .tab-btn.active {
@@ -442,7 +709,7 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .article-list {
@@ -456,7 +723,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-radius: 10px;
 }
 
@@ -469,14 +736,14 @@ onMounted(() => {
 .article-title {
   font-size: 16px;
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .article-meta {
   display: flex;
   gap: 15px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .delete-btn {
@@ -496,7 +763,7 @@ onMounted(() => {
 
 .history-item {
   padding: 20px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-radius: 10px;
 }
 
@@ -517,20 +784,20 @@ onMounted(() => {
 
 .input-text {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0 0 5px 0;
   font-style: italic;
 }
 
 .output-text {
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .tokens-used {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .modal-overlay {
@@ -547,7 +814,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   width: 90%;
   max-width: 400px;
@@ -559,12 +826,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h3 {
   font-size: 16px;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .close-btn {
@@ -572,7 +840,7 @@ onMounted(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .modal-body {
@@ -583,18 +851,51 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.birthday-selector {
+  display: flex;
+  gap: 10px;
+}
+
+.birthday-selector .month-select,
+.birthday-selector .day-select {
+  flex: 1;
+}
+
 .form-group label {
   display: block;
   font-size: 14px;
   margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .form-input {
   width: 100%;
   padding: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.form-input.bio-input {
+  resize: none;
+  overflow: hidden;
+  min-height: 40px;
+  line-height: 1.5;
+}
+
+.field-error {
+  font-size: 12px;
+  color: #d32f2f;
+  margin-top: 4px;
+  display: block;
 }
 
 .avatar-upload {
@@ -607,7 +908,7 @@ onMounted(() => {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -654,13 +955,13 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 10px;
   padding: 15px 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .cancel-btn {
   padding: 10px 20px;
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -675,10 +976,72 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s, background 0.3s;
+}
+
+.strength-fill.weak {
+  background: #d32f2f;
+}
+
+.strength-fill.medium {
+  background: #ffa000;
+}
+
+.strength-fill.strong {
+  background: #4caf50;
+}
+
+.strength-text {
+  font-size: 12px;
+  min-width: 20px;
+}
+
+.strength-text.weak {
+  color: #d32f2f;
+}
+
+.strength-text.medium {
+  color: #ffa000;
+}
+
+.strength-text.strong {
+  color: #4caf50;
+}
+
 @media (max-width: 768px) {
   .profile-header {
     flex-direction: column;
     gap: 20px;
+  }
+  
+  .header-buttons {
+    width: 100%;
+  }
+  
+  .edit-btn, .password-btn {
+    flex: 1;
   }
   
   .profile-tabs {

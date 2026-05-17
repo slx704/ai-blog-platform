@@ -2,7 +2,7 @@
   <div class="code-review">
     <div class="container">
       <div class="page-header">
-        <h1>💻 代码审查中心</h1>
+        <h1>📝 代码审查中心</h1>
         <p>让AI帮你完善代码，添加专业注释</p>
       </div>
       
@@ -18,40 +18,36 @@
                 <option value="Java">Java</option>
                 <option value="Go">Go</option>
                 <option value="Rust">Rust</option>
-                <option value="C++">C++</option>
-                <option value="C#">C#</option>
               </select>
             </div>
           </div>
           
           <textarea 
             v-model="inputCode" 
-            placeholder="粘贴你的代码..."
-            rows="15"
+            placeholder="粘贴你的代码..." 
             class="code-input"
+            rows="20"
           ></textarea>
           
           <div class="action-bar">
-            <button 
-              @click="handleAddComment"
-              :disabled="!inputCode.trim() || loading"
-              class="action-btn primary"
-            >
+            <button @click="handleAddComment" :disabled="loading" class="action-btn primary">
               <span v-if="loading" class="loading-spinner-small"></span>
-              {{ loading ? '处理中...' : '🔧 添加注释' }}
+              📝 添加注释
             </button>
-            <button @click="handleOptimize" :disabled="!inputCode.trim() || loading" class="action-btn secondary">
+            <button @click="handleOptimize" :disabled="loading" class="action-btn secondary">
               <span v-if="loading" class="loading-spinner-small"></span>
-              {{ loading ? '处理中...' : '✨ 优化代码' }}
+              ⚡ 优化代码
             </button>
-            <button @click="clearAll" class="action-btn tertiary">清空</button>
+            <button @click="clearAll" class="action-btn tertiary">
+              🗑️ 清空
+            </button>
           </div>
         </div>
         
         <div class="output-panel">
           <div class="panel-header">
             <span class="panel-title">AI处理结果</span>
-            <button v-if="outputCode" @click="copyOutput" class="copy-btn">📋 复制</button>
+            <button v-if="outputCode" @click="copyOutput" class="copy-btn">复制</button>
           </div>
           
           <div v-if="!outputCode" class="empty-output">
@@ -59,16 +55,16 @@
             <p class="hint">支持为代码添加注释、优化代码结构等功能</p>
           </div>
           
-          <pre v-else class="code-output"><code>{{ outputCode }}</code></pre>
+          <div v-else class="code-output" v-html="highlightCode(outputCode)"></div>
         </div>
       </div>
       
       <div class="examples-section">
-        <h3>📝 示例代码</h3>
+        <h3>📁 示例代码</h3>
         <div class="examples-grid">
           <button 
             v-for="example in examples" 
-            :key="example.id"
+            :key="example.name"
             @click="loadExample(example)"
             class="example-card"
           >
@@ -84,95 +80,72 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { streamCodeComment } from '../api/ai'
-import { devError } from '../utils/devLogger'
-
-const inputCode = ref('')
-const outputCode = ref('')
-const selectedLanguage = ref('JavaScript')
-const loading = ref(false)
+import { devLog, devError } from '../utils/devLogger'
 
 interface Example {
-  id: string
   name: string
   icon: string
   code: string
   language: string
 }
 
+const inputCode = ref('')
+const outputCode = ref('')
+const loading = ref(false)
+const selectedLanguage = ref('JavaScript')
+
 const examples: Example[] = [
   {
-    id: '1',
     name: '快速排序',
-    icon: '🔀',
+    icon: '⚡',
     language: 'JavaScript',
     code: `function quickSort(arr) {
-  if (arr.length <= 1) return arr;
-  const pivot = arr[Math.floor(arr.length / 2)];
-  const left = arr.filter(x => x < pivot);
-  const middle = arr.filter(x => x === pivot);
-  const right = arr.filter(x => x > pivot);
-  return [...quickSort(left), ...middle, ...quickSort(right)];
+  if (arr.length <= 1) return arr
+  const pivot = arr[Math.floor(arr.length / 2)]
+  const left = arr.filter(x => x < pivot)
+  const middle = arr.filter(x => x === pivot)
+  const right = arr.filter(x => x > pivot)
+  return [...quickSort(left), ...middle, ...quickSort(right)]
 }`
   },
   {
-    id: '2',
     name: '防抖函数',
     icon: '⏱️',
-    language: 'TypeScript',
-    code: `function debounce<T extends (...args: unknown[]) => void>(
-  fn: T, 
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<T>) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}`
-  },
-  {
-    id: '3',
-    name: 'Promise.all',
-    icon: '🤝',
     language: 'JavaScript',
-    code: `function promiseAll(promises) {
-  return new Promise((resolve, reject) => {
-    if (promises.length === 0) {
-      resolve([]);
-      return;
-    }
-    const results = [];
-    let completed = 0;
-    promises.forEach((promise, index) => {
-      Promise.resolve(promise)
-        .then(value => {
-          results[index] = value;
-          completed++;
-          if (completed === promises.length) {
-            resolve(results);
-          }
-        })
-        .catch(reject);
-    });
-  });
+    code: `function debounce(fn, delay) {
+  let timer = null
+  return function(...args) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => {
+      fn.apply(this, args)
+    }, delay)
+  }
 }`
   },
   {
-    id: '4',
+    name: 'Promise.all',
+    icon: '🔄',
+    language: 'JavaScript',
+    code: `async function fetchAll(urls) {
+  const promises = urls.map(url => fetch(url).then(res => res.json()))
+  return await Promise.all(promises)
+}`
+  },
+  {
     name: '二分查找',
     icon: '🔍',
-    language: 'Python',
-    code: `def binary_search(arr, target):
-    left, right = 0, len(arr) - 1
-    while left <= right:
-        mid = (left + right) // 2
-        if arr[mid] == target:
-            return mid
-        elif arr[mid] < target:
-            left = mid + 1
-        else:
-            right = mid - 1
-    return -1`
+    language: 'JavaScript',
+    code: `function binarySearch(arr, target) {
+  let left = 0
+  let right = arr.length - 1
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2)
+    if (arr[mid] === target) return mid
+    if (arr[mid] < target) left = mid + 1
+    else right = mid - 1
+  }
+  return -1
+}`
   }
 ]
 
@@ -182,9 +155,15 @@ const handleAddComment = async () => {
   loading.value = true
   outputCode.value = ''
   
+  const prompt = `请为以下${selectedLanguage.value}代码添加详细的注释：\n\n${inputCode.value}\n\n要求：
+1. 添加函数注释
+2. 添加关键变量注释
+3. 解释复杂逻辑
+4. 直接输出带注释的代码`
+  
   try {
     await streamCodeComment(
-      inputCode.value,
+      prompt,
       selectedLanguage.value,
       (chunk) => {
         outputCode.value += chunk
@@ -250,12 +229,25 @@ const loadExample = (example: Example) => {
   inputCode.value = example.code
   selectedLanguage.value = example.language
 }
+
+const highlightCode = (code: string) => {
+  return code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/(\/\/.*$)/gm, '<span style="color: #6a9955;">$1</span>')
+    .replace(/(\/\*[\s\S]*?\*\/)/g, '<span style="color: #6a9955;">$1</span>')
+    .replace(/\b(function|const|let|var|return|if|else|for|while|async|await|class|extends|import|export|from|new|try|catch|throw|typeof|instanceof)\b/g, '<span style="color: #c586c0;">$1</span>')
+    .replace(/\b(true|false|null|undefined|NaN|Infinity)\b/g, '<span style="color: #569cd6;">$1</span>')
+    .replace(/\b(\d+\.?\d*)\b/g, '<span style="color: #b5cea8;">$1</span>')
+    .replace(/(['"`])(.*?)\1/g, '<span style="color: #ce9178;">$1$2$1</span>')
+}
 </script>
 
 <style scoped>
 .code-review {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -280,7 +272,7 @@ const loadExample = (example: Example) => {
 }
 
 .page-header p {
-  color: #999;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -301,7 +293,7 @@ const loadExample = (example: Example) => {
 .panel-title {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .language-selector {
@@ -310,29 +302,31 @@ const loadExample = (example: Example) => {
 
 .lang-select {
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 13px;
-  background: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .input-panel, .output-panel {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .code-input {
   width: 100%;
   padding: 15px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 13px;
   line-height: 1.6;
   resize: vertical;
-  background: #fafafa;
+  background: #1e1e1e;
+  color: #ccc;
 }
 
 .code-input:focus {
@@ -379,12 +373,12 @@ const loadExample = (example: Example) => {
 }
 
 .action-btn.tertiary {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .action-btn.tertiary:hover {
-  background: #e0e0e0;
+  background: var(--border-color);
 }
 
 .action-btn:disabled {
@@ -420,7 +414,7 @@ const loadExample = (example: Example) => {
 .empty-output {
   padding: 40px 20px;
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .empty-output p {
@@ -429,11 +423,11 @@ const loadExample = (example: Example) => {
 
 .empty-output .hint {
   font-size: 13px;
-  color: #bbb;
+  color: var(--text-muted);
 }
 
 .code-output {
-  background: #2d2d2d;
+  background: #1e1e1e;
   color: #ccc;
   padding: 15px;
   border-radius: 8px;
@@ -452,16 +446,16 @@ const loadExample = (example: Example) => {
 }
 
 .examples-section {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .examples-section h3 {
   font-size: 16px;
   margin: 0 0 15px 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .examples-grid {
@@ -475,7 +469,7 @@ const loadExample = (example: Example) => {
   align-items: center;
   gap: 10px;
   padding: 12px 15px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -483,7 +477,7 @@ const loadExample = (example: Example) => {
 }
 
 .example-card:hover {
-  background: #f0f0f0;
+  background: var(--border-color);
   transform: translateY(-2px);
 }
 
@@ -493,7 +487,7 @@ const loadExample = (example: Example) => {
 
 .example-name {
   font-size: 13px;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

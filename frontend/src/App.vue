@@ -23,6 +23,10 @@
             <button @click="handleSearch" class="search-btn">搜索</button>
           </div>
           
+          <button @click="toggleTheme" class="theme-btn" :title="currentTheme === 'light' ? '切换深色模式' : '切换浅色模式'">
+            {{ currentTheme === 'light' ? '🌙' : '☀️' }}
+          </button>
+          
           <div class="auth-links" v-if="checkLogin()">
             <router-link to="/edit" class="nav-link publish-btn">写文章</router-link>
             <router-link to="/profile" class="nav-link">个人中心</router-link>
@@ -49,10 +53,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isAuthenticated, logout } from './api/auth'
+import { initTheme, toggleTheme as toggle, getTheme } from './utils/theme'
 
 const router = useRouter()
 const searchQuery = ref('')
 const loginStatus = ref(isAuthenticated())
+const currentTheme = ref<any>(getTheme())
 
 const checkLogin = () => {
   loginStatus.value = isAuthenticated()
@@ -75,9 +81,39 @@ const handleLogout = () => {
 const handleLoginSuccess = () => {
   loginStatus.value = true
 }
+
+const toggleTheme = () => {
+  currentTheme.value = toggle()
+}
+
+initTheme()
 </script>
 
 <style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-card: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border-color: #e0e0e0;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --navbar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+:root.dark {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #0f3460;
+  --text-primary: #e4e4e4;
+  --text-secondary: #b8b8b8;
+  --text-muted: #888888;
+  --border-color: #2a2a4a;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -86,8 +122,10 @@ const handleLoginSuccess = () => {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f7fa;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   min-height: 100vh;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 #app {
@@ -97,9 +135,9 @@ body {
 }
 
 .navbar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--navbar-bg);
   padding: 12px 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px var(--shadow);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -162,6 +200,8 @@ body {
   font-size: 14px;
   width: 150px;
   outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .search-btn {
@@ -177,6 +217,21 @@ body {
 
 .search-btn:hover {
   background: white;
+}
+
+.theme-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.3s;
+}
+
+.theme-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .publish-btn {
@@ -209,11 +264,12 @@ body {
 }
 
 .footer {
-  background: #333;
-  color: #999;
+  background: var(--bg-card);
+  color: var(--text-muted);
   text-align: center;
   padding: 20px 0;
   font-size: 14px;
+  border-top: 1px solid var(--border-color);
 }
 
 .footer .container {

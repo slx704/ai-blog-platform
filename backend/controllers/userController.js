@@ -1,9 +1,10 @@
 const pool = require('../config/db')
+const bcrypt = require('bcryptjs')
 
 const getProfile = async (req, res) => {
     try {
         const [users] = await pool.query(
-            'SELECT id, username, avatar, signature, age, total_tokens, role, created_at FROM users WHERE id = ?',
+            'SELECT id, username, avatar, signature, bio, nickname, gender, birthday, country, province, city, age, total_tokens, role, created_at FROM users WHERE id = ?',
             [req.user.id]
         )
 
@@ -23,11 +24,12 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
     try {
-        const { avatar, signature, age } = req.body
+        console.log('updateProfile request body:', req.body)
+        const { avatar, signature, bio, nickname, gender, birthday, country, province, city, age } = req.body
 
         const [result] = await pool.query(
-            'UPDATE users SET avatar = ?, signature = ?, age = ? WHERE id = ?',
-            [avatar, signature, age, req.user.id]
+            'UPDATE users SET avatar = COALESCE(?, avatar), signature = COALESCE(?, signature), bio = COALESCE(?, bio), nickname = COALESCE(?, nickname), gender = COALESCE(?, gender), birthday = COALESCE(SUBSTRING_INDEX(?, \'T\', 1), birthday), country = COALESCE(?, country), province = COALESCE(?, province), city = COALESCE(?, city), age = COALESCE(?, age) WHERE id = ?',
+            [avatar, signature, bio, nickname, gender, birthday, country, province, city, age, req.user.id]
         )
 
         if (result.affectedRows === 0) {
@@ -41,6 +43,44 @@ const updateProfile = async (req, res) => {
     } catch (error) {
         console.error('更新用户信息失败:', error)
         res.status(500).json({ success: false, message: '更新用户信息失败' })
+    }
+}
+
+const updatePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body
+
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ success: false, message: '请填写所有字段' })
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: '新密码至少需要6位' })
+        }
+
+        const [users] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id])
+
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: '用户不存在' })
+        }
+
+        const isMatch = await bcrypt.compare(oldPassword, users[0].password)
+
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: '原密码错误' })
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+        await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id])
+
+        res.json({
+            success: true,
+            message: '密码修改成功'
+        })
+    } catch (error) {
+        console.error('修改密码失败:', error)
+        res.status(500).json({ success: false, message: '修改密码失败' })
     }
 }
 
@@ -89,4 +129,4 @@ const getUserLikes = async (req, res) => {
     }
 }
 
-module.exports = { getProfile, updateProfile, getUserArticles, getUserLikes }
+module.exports = { getProfile, updateProfile, updatePassword, getUserArticles, getUserLikes }

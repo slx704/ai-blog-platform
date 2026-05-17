@@ -1,5 +1,5 @@
 <template>
-  <div class="article-view">
+  <div class="article">
     <div class="container">
       <div v-if="loading" class="loading">
         <div class="loading-spinner"></div>
@@ -8,15 +8,15 @@
       
       <div v-else-if="error" class="error">
         <p>{{ error }}</p>
-        <button @click="fetchArticleData" class="retry-btn">重试</button>
+        <button @click="fetchArticle" class="retry-btn">重试</button>
       </div>
       
-      <div v-else class="article-content">
-        <article class="article-main">
+      <article v-else class="article-content">
+        <div class="article-main">
           <header class="article-header">
             <h1 class="article-title">{{ article.title }}</h1>
             <div class="article-meta">
-              <span class="author">{{ article.username || '博主' }}</span>
+              <span class="author">{{ article.username }}</span>
               <span class="dot">·</span>
               <span class="date">{{ formatDate(article.created_at) }}</span>
               <span class="dot">·</span>
@@ -28,28 +28,20 @@
           
           <footer class="article-footer">
             <div class="article-actions">
-              <button 
-                :class="['action-btn', { liked: isLiked }]" 
-                @click="handleLike"
-                :disabled="loadingLike"
-              >
+              <button @click="handleLike" :class="['action-btn', { liked: isLiked }]" :disabled="!checkLogin()">
                 <span class="action-icon">{{ isLiked ? '❤️' : '🤍' }}</span>
                 <span>{{ article.like_count }} 点赞</span>
-              </button>
-              <button class="action-btn" @click="scrollToComment">
-                <span class="action-icon">💬</span>
-                <span>{{ commentCount }} 评论</span>
               </button>
             </div>
             
             <div class="article-tags">
-              <span v-for="tag in articleTags" :key="tag" class="tag">{{ tag }}</span>
+              <span v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</span>
             </div>
           </footer>
-        </article>
+        </div>
         
-        <div class="comments-section" id="comments">
-          <h3 class="comments-title">评论 ({{ commentCount }})</h3>
+        <section class="comments-section">
+          <h3 class="comments-title">评论 ({{ comments.length }})</h3>
           
           <div v-if="comments.length === 0" class="empty-comments">
             <p>暂无评论，快来发表第一条评论吧！</p>
@@ -61,51 +53,18 @@
                 <div class="comment-header">
                   <span class="comment-author">{{ comment.username }}</span>
                   <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
-                  <button 
-                    v-if="canDeleteComment(comment)" 
-                    @click="handleDeleteComment(comment.id)"
-                    class="delete-comment-btn"
-                  >
-                    删除
-                  </button>
-                  <button 
-                    @click="toggleReply(comment.id)"
-                    class="reply-btn"
-                  >
-                    回复
-                  </button>
+                  <button v-if="canDeleteComment(comment)" @click="handleDeleteComment(comment.id)" class="delete-comment-btn">删除</button>
+                  <button @click="toggleReply(comment.id)" class="reply-btn">回复</button>
                 </div>
                 <p class="comment-text">{{ comment.content }}</p>
-                
-                <button 
-                  v-if="comment.translatedContent"
-                  @click="showOriginal = !showOriginal"
-                  class="translate-toggle"
-                >
-                  {{ showOriginal ? '显示原文' : '显示翻译' }}
-                </button>
-                <p v-if="comment.translatedContent && !showOriginal" class="comment-translated">
-                  {{ comment.translatedContent }}
-                </p>
-                
-                <button 
-                  v-if="!comment.translatedContent"
-                  @click="handleTranslateComment(comment)"
-                  class="translate-btn"
-                >
-                  🔄 翻译
-                </button>
+                <p v-if="comment.translatedContent" class="comment-translated">{{ comment.translatedContent }}</p>
+                <button v-if="!comment.translatedContent" @click="handleTranslateComment(comment)" class="translate-btn">翻译</button>
                 
                 <div v-if="replyTo === comment.id" class="reply-form">
-                  <textarea 
-                    v-model="replyContent" 
-                    placeholder="写下你的回复..."
-                    rows="3"
-                    class="reply-input"
-                  ></textarea>
+                  <textarea v-model="replyContent" placeholder="输入回复内容..." class="reply-input"></textarea>
                   <div class="reply-actions">
-                    <button @click="handleReply(comment.id)" class="reply-submit">发送</button>
-                    <button @click="replyTo = null" class="reply-cancel">取消</button>
+                    <button @click="toggleReply(comment.id)" class="reply-cancel">取消</button>
+                    <button @click="handleReply(comment.id)" class="reply-submit">回复</button>
                   </div>
                 </div>
                 
@@ -115,13 +74,7 @@
                       <div class="comment-header">
                         <span class="comment-author">{{ child.username }}</span>
                         <span class="comment-date">{{ formatDate(child.created_at) }}</span>
-                        <button 
-                          v-if="canDeleteComment(child)" 
-                          @click="handleDeleteComment(child.id)"
-                          class="delete-comment-btn"
-                        >
-                          删除
-                        </button>
+                        <button v-if="canDeleteComment(child)" @click="handleDeleteComment(child.id)" class="delete-comment-btn">删除</button>
                       </div>
                       <p class="comment-text">{{ child.content }}</p>
                     </div>
@@ -131,270 +84,247 @@
             </div>
           </div>
           
-          <div v-if="isLoggedIn" class="comment-form">
-            <textarea 
-              v-model="newComment" 
-              placeholder="写下你的评论..."
-              rows="4"
-              class="comment-input"
-            ></textarea>
-            <button @click="handleAddComment" :disabled="submittingComment" class="submit-comment-btn">
-              {{ submittingComment ? '提交中...' : '发表评论' }}
-            </button>
-          </div>
-        </div>
-      </div>
+          <form @submit.prevent="handleSubmitComment" class="comment-form">
+            <textarea v-model="newComment" placeholder="写下你的评论..." class="comment-input"></textarea>
+            <button type="submit" class="submit-comment-btn">发表评论</button>
+          </form>
+        </section>
+      </article>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { fetchArticleById } from '../api/articles';
-import { fetchCommentsByArticleId, createComment, deleteComment } from '../api/comments';
-import { streamTranslate } from '../api/ai';
-import { isAuthenticated, getCurrentUser } from '../api/auth';
-import { devLog, devError } from '../utils/devLogger';
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
+import { fetchArticleById, updateViewCount, likeArticle, unlikeArticle } from '../api/articles'
+import { createComment, fetchCommentsByArticleId, deleteComment } from '../api/comments'
+import { streamTranslate } from '../api/ai'
+import { isAuthenticated } from '../api/auth'
+import { devLog, devError } from '../utils/devLogger'
+
 interface Article {
- id: number;
- title: string;
- content: string;
- view_count: number;
- like_count: number;
- created_at: string;
- username: string;
- tags?: string[];
+  id: number
+  title: string
+  content: string
+  view_count: number
+  like_count: number
+  created_at: string
+  username: string
+  tags: string[]
 }
+
 interface Comment {
- id: number;
- article_id: number;
- user_id: number;
- content: string;
- parent_id: number | null;
- username: string;
- created_at: string;
- children?: Comment[];
- translatedContent?: string;
+  id: number
+  article_id: number
+  user_id: number
+  content: string
+  parent_id: number | null
+  username: string
+  created_at: string
+  children?: Comment[]
+  translatedContent?: string
 }
-const route = useRoute();
-const router = useRouter();
-const article = ref<Article>({} as Article);
-const comments = ref<Comment[]>([]);
-const loading = ref(false);
-const loadingLike = ref(false);
-const error = ref('');
-const isLiked = ref(false);
-const newComment = ref('');
-const replyTo = ref<number | null>(null);
-const replyContent = ref('');
-const showOriginal = ref(false);
-const submittingComment = ref(false);
-const articleId = computed(() => Number(route.params.id));
-const commentCount = computed(() => {
- let count = comments.value.length;
- comments.value.forEach(c => {
- if (c.children)
- count += c.children.length;
- });
- return count;
-});
-const articleTags = computed(() => article.value.tags || []);
-const isLoggedIn = computed(() => isAuthenticated());
-const currentUser = computed(() => getCurrentUser());
+
+const route = useRoute()
+const articleId = ref(0)
+const article = ref<Article>({
+  id: 0,
+  title: '',
+  content: '',
+  view_count: 0,
+  like_count: 0,
+  created_at: '',
+  username: '',
+  tags: []
+})
+const comments = ref<Comment[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const isLiked = ref(false)
+const newComment = ref('')
+const replyContent = ref('')
+const replyTo = ref<number | null>(null)
+
 const renderedContent = computed(() => {
- if (!article.value.content)
- return '';
- const html = marked.parse(article.value.content, { async: false }) as string;
- return DOMPurify.sanitize(html);
-});
+  const html = marked(article.value.content)
+  return DOMPurify.sanitize(html)
+})
+
+const checkLogin = () => {
+  return isAuthenticated()
+}
+
 const formatDate = (dateString: string) => {
- const date = new Date(dateString);
- return date.toLocaleDateString('zh-CN', {
- year: 'numeric',
- month: '2-digit',
- day: '2-digit',
- hour: '2-digit',
- minute: '2-digit'
- });
-};
-const fetchArticleData = async () => {
- loading.value = true;
- error.value = '';
- try {
- article.value = await fetchArticleById(articleId.value);
- await fetchComments();
- }
- catch (err) {
- error.value = '获取文章失败';
- }
- finally {
- loading.value = false;
- }
-};
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const fetchArticle = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const id = parseInt(route.params.id as string)
+    articleId.value = id
+    article.value = await fetchArticleById(id)
+    await updateViewCount(id)
+    await fetchComments()
+  } catch (err) {
+    error.value = '获取文章失败'
+    devError('获取文章失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
 const fetchComments = async () => {
- try {
- const data = await fetchCommentsByArticleId(articleId.value);
- comments.value = data;
- }
- catch (err) {
-  devError('获取评论失败:', err);
-  alert('获取评论失败，请刷新页面重试');
- }
-};
+  try {
+    comments.value = await fetchCommentsByArticleId(articleId.value)
+  } catch (err) {
+    devError('获取评论失败:', err)
+  }
+}
+
 const handleLike = async () => {
- if (!isLoggedIn.value) {
- router.push('/login');
- return;
- }
- loadingLike.value = true;
- try {
- const response = await fetch('/api/likes/toggle', {
- method: 'POST',
- headers: {
- 'Content-Type': 'application/json',
- Authorization: `Bearer ${localStorage.getItem('token')}`
- },
- body: JSON.stringify({ articleId: articleId.value })
- });
- const data = await response.json();
- if (data.success) {
- isLiked.value = data.data.liked;
- article.value.like_count += isLiked.value ? 1 : -1;
- }
- }
- catch (err) {
-  devError('点赞失败:', err);
- }
- finally {
- loadingLike.value = false;
- }
-};
-const handleAddComment = async () => {
- if (!newComment.value.trim())
- return;
- submittingComment.value = true;
- try {
- devLog('正在提交评论:', newComment.value);
- const result = await createComment(articleId.value, newComment.value.trim());
- devLog('评论提交结果:', result);
- 
- const newCommentObj: Comment = {
-   id: result.id,
-   article_id: articleId.value,
-   user_id: currentUser.value?.id || 0,
-   content: newComment.value.trim(),
-   parent_id: null,
-   username: currentUser.value?.username || '匿名用户',
-   created_at: new Date().toISOString(),
-   children: []
- };
- 
- comments.value = [...comments.value, newCommentObj];
- newComment.value = '';
- devLog('评论已添加到列表');
- }
- catch (err) {
- devError('发表评论失败:', err);
- alert('发表评论失败，请稍后重试');
- }
- finally {
- submittingComment.value = false;
- }
-};
+  if (!checkLogin()) return
+  
+  try {
+    if (isLiked.value) {
+      await unlikeArticle(articleId.value)
+      article.value.like_count--
+    } else {
+      await likeArticle(articleId.value)
+      article.value.like_count++
+    }
+    isLiked.value = !isLiked.value
+  } catch (err) {
+    devError('点赞失败:', err)
+  }
+}
+
+const handleSubmitComment = async () => {
+  if (!newComment.value.trim() || !checkLogin()) return
+  
+  try {
+    devLog('正在提交评论:', newComment.value)
+    const result = await createComment(articleId.value, newComment.value.trim())
+    devLog('评论提交结果:', result)
+    
+    const newCommentObj: Comment = {
+      id: result.id,
+      article_id: articleId.value,
+      user_id: 0,
+      content: newComment.value.trim(),
+      parent_id: null,
+      username: '用户',
+      created_at: new Date().toISOString(),
+      children: []
+    }
+    
+    comments.value = [...comments.value, newCommentObj]
+    newComment.value = ''
+    devLog('评论已添加到列表')
+  } catch (err) {
+    devError('发表评论失败:', err)
+    alert('发表评论失败，请稍后重试')
+  }
+}
+
 const handleReply = async (parentId: number) => {
- if (!replyContent.value.trim())
- return;
- submittingComment.value = true;
- try {
- devLog('正在提交回复:', replyContent.value);
- const result = await createComment(articleId.value, replyContent.value.trim(), parentId);
- devLog('回复提交结果:', result);
- 
- const newReplyObj: Comment = {
-   id: result.id,
-   article_id: articleId.value,
-   user_id: currentUser.value?.id || 0,
-   content: replyContent.value.trim(),
-   parent_id: parentId,
-   username: currentUser.value?.username || '匿名用户',
-   created_at: new Date().toISOString()
- };
- 
- const parentComment = comments.value.find(c => c.id === parentId);
- if (parentComment) {
-   if (!parentComment.children) {
-     parentComment.children = [];
-   }
-   parentComment.children = [...(parentComment.children || []), newReplyObj];
- }
- 
- replyContent.value = '';
- replyTo.value = null;
- devLog('回复已添加到列表');
- }
- catch (err) {
- devError('回复评论失败:', err);
- alert('回复失败，请稍后重试');
- }
- finally {
- submittingComment.value = false;
- }
-};
+  if (!replyContent.value.trim()) return
+  
+  try {
+    devLog('正在提交回复:', replyContent.value)
+    const result = await createComment(articleId.value, replyContent.value.trim(), parentId)
+    devLog('回复提交结果:', result)
+    
+    const newReplyObj: Comment = {
+      id: result.id,
+      article_id: articleId.value,
+      user_id: 0,
+      content: replyContent.value.trim(),
+      parent_id: parentId,
+      username: '用户',
+      created_at: new Date().toISOString()
+    }
+    
+    const parentComment = comments.value.find(c => c.id === parentId)
+    if (parentComment) {
+      if (!parentComment.children) {
+        parentComment.children = []
+      }
+      parentComment.children = [...(parentComment.children || []), newReplyObj]
+    }
+    
+    replyContent.value = ''
+    replyTo.value = null
+    devLog('回复已添加到列表')
+  } catch (err) {
+    devError('回复评论失败:', err)
+    alert('回复失败，请稍后重试')
+  }
+}
+
 const toggleReply = (commentId: number) => {
- replyTo.value = replyTo.value === commentId ? null : commentId;
- replyContent.value = '';
-};
+  replyTo.value = replyTo.value === commentId ? null : commentId
+  replyContent.value = ''
+}
+
 const handleDeleteComment = async (commentId: number) => {
- if (!confirm('确定删除这条评论吗？'))
- return;
- try {
- devLog('正在删除评论:', commentId);
- await deleteComment(commentId);
- 
- comments.value = comments.value.filter(c => c.id !== commentId);
- comments.value.forEach(c => {
- if (c.children) {
- c.children = c.children.filter(child => child.id !== commentId);
- }
- });
- 
- devLog('评论已从列表中删除');
- }
- catch (err) {
- devError('删除评论失败:', err);
- alert('删除评论失败，请稍后重试');
- }
-};
+  if (!confirm('确定删除这条评论吗？')) return
+  
+  try {
+    devLog('正在删除评论:', commentId)
+    await deleteComment(commentId)
+    
+    comments.value = comments.value.filter(c => c.id !== commentId)
+    comments.value.forEach(c => {
+      if (c.children) {
+        c.children = c.children.filter(child => child.id !== commentId)
+      }
+    })
+    
+    devLog('评论已从列表中删除')
+  } catch (err) {
+    devError('删除评论失败:', err)
+    alert('删除评论失败，请稍后重试')
+  }
+}
+
 const canDeleteComment = (comment: Comment) => {
- return currentUser.value && currentUser.value.id === comment.user_id;
-};
+  return true
+}
+
 const handleTranslateComment = async (comment: Comment) => {
- try {
- let result = '';
- await streamTranslate(comment.content, '中文', (chunk) => {
- result += chunk;
- });
- comment.translatedContent = result;
- showOriginal.value = false;
- }
- catch (err) {
- devError('翻译失败:', err);
- }
-};
-const scrollToComment = () => {
- document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' });
-};
+  try {
+    let result = ''
+    await streamTranslate(comment.content, '中文', (chunk) => {
+      result += chunk
+    })
+    comment.translatedContent = result
+  } catch (err) {
+    devError('翻译失败:', err)
+  }
+}
+
 onMounted(() => {
- fetchArticleData();
-});
+  fetchArticle()
+})
 </script>
 
 <style scoped>
-.article-view {
+.article {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   padding: 30px 0;
 }
 
@@ -412,7 +342,7 @@ onMounted(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e0e0e0;
+  border: 3px solid var(--border-color);
   border-top: 3px solid #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -441,9 +371,9 @@ onMounted(() => {
 }
 
 .article-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 10px var(--shadow);
   overflow: hidden;
 }
 
@@ -458,14 +388,14 @@ onMounted(() => {
 .article-title {
   font-size: 28px;
   font-weight: bold;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 16px 0;
   line-height: 1.4;
 }
 
 .article-meta {
   font-size: 14px;
-  color: #999;
+  color: var(--text-muted);
   display: flex;
   gap: 8px;
 }
@@ -473,14 +403,14 @@ onMounted(() => {
 .article-body {
   font-size: 16px;
   line-height: 1.8;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .article-body :deep(h1) {
   font-size: 24px;
   margin: 24px 0 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .article-body :deep(h2) {
@@ -498,7 +428,7 @@ onMounted(() => {
 }
 
 .article-body :deep(code) {
-  background: #f0f2f5;
+  background: var(--bg-secondary);
   padding: 2px 6px;
   font-family: 'Consolas', monospace;
   font-size: 14px;
@@ -506,23 +436,24 @@ onMounted(() => {
 }
 
 .article-body :deep(pre) {
-  background: #f6f8fa;
+  background: #1e1e1e;
   padding: 16px;
   overflow-x: auto;
   border-radius: 8px;
-  border: 1px solid #e1e4e8;
+  border: 1px solid var(--border-color);
 }
 
 .article-body :deep(pre code) {
   background: none;
   padding: 0;
+  color: #ccc;
 }
 
 .article-body :deep(blockquote) {
   border-left: 3px solid #667eea;
   margin: 16px 0;
   padding-left: 16px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .article-body :deep(a) {
@@ -534,10 +465,19 @@ onMounted(() => {
   text-decoration: underline;
 }
 
+.article-body :deep(ul), .article-body :deep(ol) {
+  padding-left: 24px;
+  margin: 12px 0;
+}
+
+.article-body :deep(li) {
+  margin: 4px 0;
+}
+
 .article-footer {
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .article-actions {
@@ -551,7 +491,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 10px 20px;
-  background: #f5f7fa;
+  background: var(--bg-secondary);
   border: none;
   border-radius: 25px;
   font-size: 14px;
@@ -560,11 +500,16 @@ onMounted(() => {
 }
 
 .action-btn:hover {
-  background: #e8eaed;
+  background: var(--border-color);
 }
 
 .action-btn.liked {
   background: #ffeef0;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-icon {
@@ -579,28 +524,29 @@ onMounted(() => {
 
 .tag {
   padding: 5px 12px;
-  background: #f0f0f0;
+  background: var(--bg-secondary);
   border-radius: 15px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .comments-section {
   padding: 30px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .comments-title {
   font-size: 18px;
+  color: var(--text-primary);
   margin: 0 0 20px 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .empty-comments {
   text-align: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .comments-list {
@@ -611,12 +557,12 @@ onMounted(() => {
 
 .comment-item {
   padding: 20px;
-  background: #fafafa;
+  background: var(--bg-secondary);
   border-radius: 10px;
 }
 
 .comment-content {
-  background: white;
+  background: var(--bg-card);
   padding: 15px;
   border-radius: 8px;
 }
@@ -630,12 +576,12 @@ onMounted(() => {
 
 .comment-author {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .comment-date {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .delete-comment-btn, .reply-btn {
@@ -660,17 +606,17 @@ onMounted(() => {
 .comment-text {
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .comment-translated {
   font-size: 13px;
   line-height: 1.6;
-  color: #666;
+  color: var(--text-secondary);
   margin: 10px 0 0 0;
   padding-top: 10px;
-  border-top: 1px dashed #eee;
+  border-top: 1px dashed var(--border-color);
   font-style: italic;
 }
 
@@ -688,16 +634,18 @@ onMounted(() => {
 .reply-form {
   margin-top: 15px;
   padding-top: 15px;
-  border-top: 1px dashed #eee;
+  border-top: 1px dashed var(--border-color);
 }
 
 .reply-input {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   resize: vertical;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .reply-actions {
@@ -718,8 +666,8 @@ onMounted(() => {
 
 .reply-cancel {
   padding: 6px 16px;
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -728,7 +676,7 @@ onMounted(() => {
 .nested-comments {
   margin-top: 15px;
   padding-left: 20px;
-  border-left: 2px solid #eee;
+  border-left: 2px solid var(--border-color);
 }
 
 .nested-comment {
@@ -742,10 +690,12 @@ onMounted(() => {
 .comment-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
   resize: vertical;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .submit-comment-btn {
