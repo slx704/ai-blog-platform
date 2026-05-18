@@ -138,7 +138,7 @@ npm run format
 | 服务 | 本地地址 | Docker 地址 |
 |------|----------|-------------|
 | 前端 | http://localhost:5173 | http://localhost |
-| 后端 | http://localhost:3001 | http://localhost:3001 |
+| 后端 | http://localhost:3001 | http://localhost:3001 
 | 数据库 | localhost:3306 | localhost:3306 |
 
 ## 📝 注意事项
@@ -147,6 +147,3 @@ npm run format
 2. 默认密码都是 `123456`，生产环境请修改
 3. 数据库数据持久化在 `mysql-data` 卷中
 
-## 📄 License
-
-MIT
